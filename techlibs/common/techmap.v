@@ -285,16 +285,31 @@ module _90_alu (A, B, CI, BI, X, Y, CO);
 	input CI, BI;
 	output [Y_WIDTH-1:0] CO;
 
-	wire [Y_WIDTH-1:0] A_buf, B_buf;
-	\$pos #(.A_SIGNED(A_SIGNED), .A_WIDTH(A_WIDTH), .Y_WIDTH(Y_WIDTH)) A_conv (.A(A), .Y(A_buf));
-	\$pos #(.A_SIGNED(B_SIGNED), .A_WIDTH(B_WIDTH), .Y_WIDTH(Y_WIDTH)) B_conv (.A(B), .Y(B_buf));
+	generate
+		if (B_WIDTH == 0) begin
+			\$pos #(.A_SIGNED(A_SIGNED), .A_WIDTH(A_WIDTH), .Y_WIDTH(Y_WIDTH)) A_conv (.A(A), .Y(X));
+			\$lcu #(.WIDTH(Y_WIDTH)) lcu (.P(X), .G({Y_WIDTH{1'b0}}), .CI(CI), .CO(CO));
+		end
+		else begin
+			wire [Y_WIDTH-1:0] B_buf;
+			\$pos #(.A_SIGNED(B_SIGNED), .A_WIDTH(B_WIDTH), .Y_WIDTH(Y_WIDTH)) B_conv (.A(B), .Y(B_buf));
+			wire [Y_WIDTH-1:0] BB = BI ? ~B_buf : B_buf;
 
-	wire [Y_WIDTH-1:0] AA = A_buf;
-	wire [Y_WIDTH-1:0] BB = BI ? ~B_buf : B_buf;
+			if (A_WIDTH == 0) begin
+				assign X = BB;
+				\$lcu #(.WIDTH(Y_WIDTH)) lcu (.P(X), .G({Y_WIDTH{1'b0}}), .CI(CI), .CO(CO));
+			end
+			else begin
+				wire [Y_WIDTH-1:0] A_buf;
+				\$pos #(.A_SIGNED(A_SIGNED), .A_WIDTH(A_WIDTH), .Y_WIDTH(Y_WIDTH)) A_conv (.A(A), .Y(A_buf));
+				wire [Y_WIDTH-1:0] AA = A_buf;
 
-	\$lcu #(.WIDTH(Y_WIDTH)) lcu (.P(X), .G(AA & BB), .CI(CI), .CO(CO));
+				assign X = AA ^ BB;
+				\$lcu #(.WIDTH(Y_WIDTH)) lcu (.P(X), .G(AA & BB), .CI(CI), .CO(CO));
+			end
+		end
+	endgenerate
 
-	assign X = AA ^ BB;
 	assign Y = X ^ {CO, CI};
 endmodule
 
